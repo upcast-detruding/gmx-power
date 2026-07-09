@@ -45,6 +45,7 @@ python -m gmx_power --buyback     # weekly accrual summary
 python -m gmx_power --timeline    # dated buyback history, week by week
 python -m gmx_power --supply      # staked / LP / vester buckets, and the residual
 python -m gmx_power --forecast    # treasury projection, and time-to-$90 arithmetic
+python -m gmx_power --treasury    # where the buyback sends GMX, read from the DataStore
 ```
 
 Reproduce the checks the tool rests on:
@@ -76,8 +77,7 @@ GMX while sitting at your peak and you gain only 200 GMX of extra withdrawal hea
 not 1,000. At your peak you can never withdraw more than 20%.
 
 **Unstaking never lowers your peak.** Spend your 20% and your headroom is zero until
-you stake more. There is no second bite. Unstaking also burns multiplier points
-(bnGMX) proportionally, a cost that applies even within the headroom.
+you stake more. There is no second bite.
 
 ## What this tool refuses to do
 
@@ -95,8 +95,9 @@ checked yourself into `cex_addresses.json` and it will be broken out.
 
 **It will not show you a number it cannot stand behind.** An Avalanche staker has no
 reported treasury to claim against, so the tool prints nothing there rather than a
-plausible figure. The treasury balance is reported rounded by the API, and its address
-is unpublished, so it is labelled unverifiable.
+plausible figure. The treasury figure is reported rounded by the API and is not the
+balance of any address you can inspect, so it is labelled unverifiable — run
+`--treasury` to see exactly how far the on-chain trail goes.
 
 ## Contributing
 

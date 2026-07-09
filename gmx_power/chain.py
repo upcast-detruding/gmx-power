@@ -144,9 +144,6 @@ def show_account(account: str) -> int:
         print("  headroom, permanently: unstaking never lowers the peak.")
     else:
         print("\n  All staked esGMX can be vested without breaching the floor.")
-
-    print("\n  Unstaking also burns multiplier points (bnGMX) proportionally")
-    print("  (RewardRouterV2._unstakeGmx). That cost applies even within the headroom.")
     return 0
 
 

@@ -106,9 +106,14 @@ received by that account"*). For an esGMX-heavy position the loyalty headroom us
 binds first, well below what the vester would otherwise allow.
 
 Reserving `pairToken` for a vest locks fee-tracker tokens but does **not** touch
-`stakedAmounts`, so it adds no reset risk. Unstaking does burn bnGMX multiplier points
-proportionally (`_unstakeGmx`), which is a real cost even within the headroom, and is
-not modelled here.
+`stakedAmounts`, so it adds no reset risk.
+
+`_unstakeGmx` also burns bnGMX (multiplier points) proportionally, but that is not a
+cost worth modelling: multiplier points were retired by governance in May 2024 and
+converted to esGMX at 25:1. On-chain today, `tokensPerInterval` is zero on the bnGMX,
+WETH and esGMX distributors, and `extendedGmxTracker.totalDepositSupply(bnGMX)` is
+zero — nothing is emitted, nothing is staked, and the remaining ~12.3M bnGMX supply
+sits inert in wallets. Burning it costs nothing.
 
 ## The entitlement is computed off-chain
 
@@ -124,12 +129,28 @@ reconstruction is the natural next thing to build here.
 Two related observations:
 
 - `treasuryGmxBalance` is reported as exactly `334390900000000000000000` — 17 trailing
-  zeros — and `totalAccrued` as exactly `334391000000000000000000`. Real ERC-20
-  balances do not end in seventeen zeros. Both are **rounded**, the 0.1 GMX difference
-  between them is only that rounding, and neither can be reconciled to the wei.
-- The treasury address is not published in the SDK's contract config, and did not
-  surface in a sample of recent GMX transfers. Without it, the treasury side cannot be
-  checked at all.
+  zeros — and `totalAccrued` as exactly `334391000000000000000000`. Every
+  `weeklyAccrued` is likewise a whole number of GMX. Real ERC-20 balances do not look
+  like this. All are **rounded**, the 0.1 GMX difference between the first two is only
+  that rounding, and neither can be reconciled to the wei.
+- The treasury address is not published, but the buyback's *destination* is readable
+  on-chain: `FeeHandler.withdrawFees()` pays bought-back GMX to
+  `dataStore.getAddress(Keys.FEE_RECEIVER)`. `python -m gmx_power.treasury` reads it
+  live. Following the GMX through that path since accrual began on 2026-03-04, the
+  `FeeHandler` has delivered **2,000 GMX** to the fee receiver, against a reported
+  `totalAccrued` of **334,391 GMX**. Over the same period 1,453.71 WETH — the other
+  side of the same fee split — arrived at that receiver and is plainly visible.
+
+The likeliest reading is that the on-chain `buyback()` arbitrage path (200 GMX per
+batch) is not where the buying happens, and that `totalAccrued` is the GMX-denominated
+27% share of protocol fees — an accrued entitlement, not a balance. That is consistent
+with the treasury being held as the floor price fund and protocol-owned liquidity
+rather than as a plain GMX balance. It is **not** evidence of anything improper.
+
+What it does mean is narrower and still worth knowing: the number your projected share
+is computed against is not the balance of an address you can inspect. The tool
+therefore labels the treasury side unverifiable, and says so rather than implying a
+precision it does not have.
 
 ## Accrual is per-chain, and Arbitrum-only
 

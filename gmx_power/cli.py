@@ -187,8 +187,8 @@ def show_forecast(chain: str, price: Decimal | None) -> None:
         print("  not reported on this chain.")
         return
     print(f"  balance now         {treasury:>12,.1f} GMX" + (f"  (~${treasury * price:,.0f})" if price else ""))
-    print("  reported to 0.1 GMX; the treasury address is unpublished, so this")
-    print("  figure cannot be checked on-chain. See VERIFICATION.md.")
+    print("  reported to 0.1 GMX, and it is not the balance of any address you can")
+    print("  inspect, so it cannot be checked on-chain. Run --treasury for the trail.")
 
     if points:
         rates = forecast.accrual_rates(points)
@@ -253,14 +253,15 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--timeline", action="store_true", help="dated buyback timeline")
     ap.add_argument("--supply", action="store_true", help="where the GMX supply sits")
     ap.add_argument("--forecast", action="store_true", help="treasury projection and time-to-$90 arithmetic")
+    ap.add_argument("--treasury", action="store_true", help="where the buyback sends GMX, read from the DataStore")
     ap.add_argument("--price", type=Decimal, help="override GMX price in USD")
     ap.add_argument("--staked", type=Decimal, help="model a hypothetical balance, no address needed")
     ap.add_argument("--peak", type=Decimal, help="hypothetical historical peak (defaults to --staked)")
     args = ap.parse_args(argv)
 
-    views = (args.buyback, args.timeline, args.supply, args.forecast)
+    views = (args.buyback, args.timeline, args.supply, args.forecast, args.treasury)
     if not args.address and args.staked is None and not any(views):
-        ap.error("give --address, --staked, or one of --buyback/--timeline/--supply/--forecast")
+        ap.error("give --address, --staked, or one of --buyback/--timeline/--supply/--forecast/--treasury")
     if args.address and args.staked is not None:
         ap.error("--address and --staked are alternatives")
 
@@ -314,6 +315,10 @@ def main(argv: list[str] | None = None) -> int:
         show_supply(price)
     if args.forecast:
         show_forecast(args.chain, price)
+    if args.treasury:
+        from . import treasury
+
+        treasury.show()
 
     print("\nRead-only tool. Figures are the protocol's own, cross-checked; not advice.")
     return 0
