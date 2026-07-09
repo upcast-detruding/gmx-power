@@ -16,11 +16,17 @@ for both versions -- it was set to zero on 2026-03-11 (V2) and 2026-03-13 (V1),
 one week after reward accrual began -- so the on-chain module buys no GMX at all,
 and the fee share is taken as WNT instead.
 
+The treasury's addresses *are* public -- not in the docs, but in the interface
+repo, `src/domain/stats/treasury/useTreasury.ts`, which is what the stats page
+sums. They are listed below. The app's "Total bought GMX" figure, however, is not
+read from them: it is `totalAccrued` from `/v1/buyback/weekly-stats`.
+
 None of that is evidence of anything improper. The DAO's stated plan is to buy
 back GMX's supply held on centralised exchanges, which an on-chain arbitrage
-contract cannot do. It does mean `treasuryGmxBalance` is an accounting figure
-rather than the balance of an address you can inspect, so a staker's projected
-share cannot presently be checked against the chain.
+contract cannot do, and GMX bought on an exchange need never touch these
+addresses. It does mean `totalAccrued` is an accounting figure rather than
+anything you can check on-chain, so a staker's projected share cannot presently
+be verified.
 
     python -m gmx_power.treasury
 """
@@ -40,6 +46,27 @@ GMX_TOKEN = "0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a"
 
 SEL_GET_ADDRESS = "0x21f8a721"  # getAddress(bytes32)
 SEL_GET_UINT = "0xbd02d0f5"  # getUint(bytes32)
+SEL_BALANCE_OF = "0x70a08231"
+
+# Uniswap V3 NonfungiblePositionManager. Some treasury GMX sits inside LP
+# positions rather than as a plain balance, so a balance sum alone understates it.
+UNIV3_POSITIONS = "0xC36442b4a4522E871399CD717aBDD847Ab11FE88"
+
+# The treasury. Not published in the docs, but public all the same: this is the
+# list the stats page sums, from gmx-io/gmx-interface,
+# src/domain/stats/treasury/useTreasury.ts
+TREASURY_ADDRESSES = (
+    "0x4bd1cdaab4254fc43ef6424653ca2375b4c94c0e",
+    "0xc6378ddf536410c14666dc59bc92b5ebc0f2f79e",
+    "0x0263ad94023a5df6d64f54bfef089f1fbf8a4ca0",
+    "0xea8a734db4c7ea50c32b5db8a0cb811707e8ace3",
+    "0xe1f7c5209938780625e354dc546e28397f6ce174",
+    "0x68863dde14303bced249ca8ec6af85d4694dea6a",
+    "0x0339740d92fb8baf73bab0e9eb9494bc0df1cafd",
+    "0x2c247a44928d66041d9f7b11a69d7a84d25207ba",
+    "0x0a2962120b11a4a36700c5de00d4980e58a2d1c0",
+    "0xe57fe47902a35bc0d82c83e39610af546e1d18b9",
+)
 
 PRECISION = 10**30  # Precision.FLOAT_PRECISION: 1e30 == 100%
 
@@ -112,17 +139,33 @@ def show() -> int:
     print(f"  withdrawable from it     {Decimal(withdrawable) / WEI:>14,.4f}")
     print(f"  buyback batch size       {Decimal(batch) / WEI:>14,.4f}")
 
+    print("\nThe treasury (gmx-interface, src/domain/stats/treasury/useTreasury.ts):")
+    total = 0
+    lp_positions = 0
+    for addr in TREASURY_ADDRESSES:
+        held = rpc.balance_of("arbitrum", GMX_TOKEN, addr)
+        total += held
+        n = rpc.call("arbitrum", UNIV3_POSITIONS, SEL_BALANCE_OF + rpc.pad_address(addr)) or 0
+        lp_positions += n
+        note = f"   + {n} Uniswap V3 position(s)" if n else ""
+        print(f"  {addr}  {Decimal(held) / WEI:>14,.4f}{note}")
+    print(f"  {'GMX held as plain balances':44s}{Decimal(total) / WEI:>14,.4f}")
+    if lp_positions:
+        print(f"  ...and {lp_positions} Uniswap V3 positions, whose GMX is *not* counted above.")
+
     stats = api.buyback_stats()
-    print("\nWhat the API reports:")
+    print("\nWhat the API reports, and the app displays as \"Total bought GMX\":")
     print(f"  totalAccrued             {stats.total_accrued_gmx:>14,.4f}")
     print(f"  over                     {stats.weeks_tracked:>14,} weeks")
 
     print("\nThese describe different things.")
-    print("  The buying is not happening through these contracts, so `totalAccrued` is")
-    print("  an accrued entitlement denominated in GMX, not the balance of an address")
-    print("  you can inspect. The DAO's stated plan is to buy back supply held on")
-    print("  centralised exchanges, which an on-chain arbitrage contract cannot do, so")
-    print("  this is expected -- but it does mean the figure your projected share is")
+    print("  The app's \"Total bought GMX\" is this API figure, not a chain read. The")
+    print("  buying is not happening through the contracts above, and `totalAccrued`")
+    print("  matches neither the treasury's GMX balance nor the GMX flowing into it.")
+    print("  It is an accrued entitlement denominated in GMX. The DAO's stated plan is")
+    print("  to buy back supply held on centralised exchanges, which an on-chain")
+    print("  arbitrage contract cannot do and which need never touch these addresses,")
+    print("  so this is expected -- but it does mean the figure your projected share is")
     print("  computed against cannot be checked on-chain. Worth asking about; not by")
     print("  itself evidence that anything is wrong.")
     return 0

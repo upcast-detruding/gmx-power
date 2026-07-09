@@ -110,6 +110,20 @@ def test_the_27_percent_arithmetic():
     assert round(effective * 100 / treasury.PRECISION, 2) == 27.00
 
 
+def test_treasury_address_set():
+    """Ten addresses, lowercase, unique, well-formed. Transcribed by hand from
+    gmx-interface, so a typo would silently drop a treasury balance from the sum."""
+    addrs = treasury.TREASURY_ADDRESSES
+    assert len(addrs) == 10
+    assert len(set(addrs)) == 10
+    for a in addrs:
+        assert a == a.lower(), f"{a} must be lowercase to compare against log topics"
+        assert len(a) == 42 and a.startswith("0x")
+        int(a, 16)  # raises on a non-hex typo
+    # The address the fee receiver began paying at powerAccrualStart must be in the set.
+    assert "0x68863dde14303bced249ca8ec6af85d4694dea6a" in addrs
+
+
 def test_keys_are_bare_hex_not_prefixed():
     """They are concatenated onto a selector, so a 0x prefix would corrupt the call."""
     keys = (

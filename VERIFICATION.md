@@ -133,8 +133,9 @@ Two related observations:
   `weeklyAccrued` is likewise a whole number of GMX. Real ERC-20 balances do not look
   like this. All are **rounded**, the 0.1 GMX difference between the first two is only
   that rounding, and neither can be reconciled to the wei.
-- The treasury address is not published, but the buyback's *configuration* is readable
-  on-chain, and `python -m gmx_power.treasury` reads it live.
+- The treasury's addresses **are** public — not in the docs, but in the interface repo,
+  `src/domain/stats/treasury/useTreasury.ts`, which is the list the stats page sums.
+  There are ten. `python -m gmx_power.treasury` reads their GMX balances live.
 
 ### How the 27% is encoded, and why you cannot currently see it
 
@@ -159,10 +160,30 @@ supply held on centralised exchanges, which an on-chain arbitrage contract canno
 a wallet balance, consistent with the treasury being held as the floor price fund and
 protocol-owned liquidity.
 
-What it does mean is narrower and still worth knowing: the number your projected share
-is computed against is not the balance of an address you can inspect. The tool
-therefore labels the treasury side unverifiable, and says so rather than implying a
-precision it does not have.
+### The dashboard is not a second source
+
+`app.gmx.io` shows **"Total bought GMX"** with the tooltip *"Total amount of GMX bought
+back since tracking began"*. That figure is not read from the chain: `useBuybackWeeklyStats`
+calls `sdk.fetchBuybackWeeklyStats()`, which is `GET /v1/buyback/weekly-stats`, hardcoded
+to Arbitrum. It is the same `totalAccrued` this tool prints. Confirming it against the
+API confirms nothing.
+
+### It matches neither the treasury's balance nor its inflows
+
+Summing GMX across the ten published treasury addresses (Arbitrum): **306,120.03 GMX**
+as plain balances, plus **275,000 GMX** inside eleven Uniswap V3 positions — all
+out-of-range, single-sided range orders — for **581,120.03 GMX**. More than
+`totalAccrued`, because the treasury held GMX long before the buyback began.
+
+Tracking GMX *into* those addresses since 2026-03-04, excluding transfers between them:
+**140,545.08 GMX**. Of that, 97,741.30 arrived on 2026-03-11/12 from the Uniswap V3
+position manager and from the pool itself — a `Burn` and a `Collect`, with no `Swap`
+event, so liquidity being withdrawn rather than GMX being bought — and 3,967.07 arrived
+on 2026-05-28. Only **38,836.51** came from the fee receiver. Nothing resembles a
+recurring purchase of ~18,000 GMX a week.
+
+So `totalAccrued` is an accrued entitlement denominated in GMX. The tool labels the
+treasury side unverifiable and says so, rather than implying a precision it lacks.
 
 One check cuts the other way and is worth recording: the fee receiver switched its GMX
 destination at block **438,078,860** — **2026-03-04 01:00 UTC**, the first hour after
