@@ -18,7 +18,7 @@ no backend, no telemetry, and no analytics.
 Python 3.10+. No dependencies. `pytest` only to run the tests.
 
 ```
-git clone <this repo> && cd gmx-power
+git clone https://github.com/upcast-detruding/gmx-power && cd gmx-power
 python -m gmx_power --help
 ```
 
