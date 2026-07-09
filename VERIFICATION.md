@@ -133,24 +133,41 @@ Two related observations:
   `weeklyAccrued` is likewise a whole number of GMX. Real ERC-20 balances do not look
   like this. All are **rounded**, the 0.1 GMX difference between the first two is only
   that rounding, and neither can be reconciled to the wei.
-- The treasury address is not published, but the buyback's *destination* is readable
-  on-chain: `FeeHandler.withdrawFees()` pays bought-back GMX to
-  `dataStore.getAddress(Keys.FEE_RECEIVER)`. `python -m gmx_power.treasury` reads it
-  live. Following the GMX through that path since accrual began on 2026-03-04, the
-  `FeeHandler` has delivered **2,000 GMX** to the fee receiver, against a reported
-  `totalAccrued` of **334,391 GMX**. Over the same period 1,453.71 WETH — the other
-  side of the same fee split — arrived at that receiver and is plainly visible.
+- The treasury address is not published, but the buyback's *configuration* is readable
+  on-chain, and `python -m gmx_power.treasury` reads it live.
 
-The likeliest reading is that the on-chain `buyback()` arbitrage path (200 GMX per
-batch) is not where the buying happens, and that `totalAccrued` is the GMX-denominated
-27% share of protocol fees — an accrued entitlement, not a balance. That is consistent
-with the treasury being held as the floor price fund and protocol-owned liquidity
-rather than as a plain GMX balance. It is **not** evidence of anything improper.
+### How the 27% is encoded, and why you cannot currently see it
+
+The "27% of protocol fees" is not a constant anywhere. Of each fee,
+`positionFeeReceiverFactor` sets aside **37%**. `FeeHandler` splits that share between a
+GMX buyback and a WNT buyback via `buybackGmxFactor(version)`. V2's factor was
+**72.97%**, and `0.37 × 0.7297 = 0.269989` — the headline 27%, to two decimal places.
+Arbitrageurs call `FeeHandler.buyback()`, depositing a fixed `buybackBatchAmount`
+(200 GMX) for the accrued fee tokens; `FeeHandler.withdrawFees()` then forwards the GMX
+to `dataStore.getAddress(Keys.FEE_RECEIVER)`.
+
+Today both factors read **zero**. They were set to zero by `Config.setUint` on
+**2026-03-11** (V2, block 440,628,485) and **2026-03-13** (V1, block 441,297,314), a week
+after accrual began, and the fee share is taken as WNT instead. The flows agree: since
+2026-03-04 the `FeeHandler` has delivered **2,000 GMX** to the fee receiver — residue
+draining in 200-GMX batches — against **1,453.71 WETH** over the same period, while
+`totalAccrued` reports **334,391 GMX**.
+
+This is **not** evidence of anything improper. The DAO's stated plan is to buy back
+supply held on centralised exchanges, which an on-chain arbitrage contract cannot do.
+`totalAccrued` therefore reads as an accrued entitlement denominated in GMX rather than
+a wallet balance, consistent with the treasury being held as the floor price fund and
+protocol-owned liquidity.
 
 What it does mean is narrower and still worth knowing: the number your projected share
 is computed against is not the balance of an address you can inspect. The tool
 therefore labels the treasury side unverifiable, and says so rather than implying a
 precision it does not have.
+
+One check cuts the other way and is worth recording: the fee receiver switched its GMX
+destination at block **438,078,860** — **2026-03-04 01:00 UTC**, the first hour after
+`powerAccrualStart`, having paid the previous address until thirty seconds earlier. The
+regime change is visible on-chain to the hour.
 
 ## Accrual is per-chain, and Arbitrum-only
 

@@ -83,7 +83,43 @@ def test_gmx_scoped_keys():
     assert treasury.KEY_BATCH_GMX == keccak256(batch + gmx).hex()
 
 
+def test_version_scoped_buyback_factor_keys():
+    """keccak256(abi.encode(BUYBACK_GMX_FACTOR, version)) -- version is a uint256."""
+    base = keccak256(_abi_encode_string(b"BUYBACK_GMX_FACTOR"))
+    assert treasury.KEY_BUYBACK_GMX_FACTOR_V1 == keccak256(base + (1).to_bytes(32, "big")).hex()
+    assert treasury.KEY_BUYBACK_GMX_FACTOR_V2 == keccak256(base + (2).to_bytes(32, "big")).hex()
+
+
+def test_position_fee_receiver_factor_key():
+    expected = keccak256(_abi_encode_string(b"POSITION_FEE_RECEIVER_FACTOR"))
+    assert treasury.KEY_POSITION_FEE_RECEIVER_FACTOR == expected.hex()
+
+
+def test_the_27_percent_arithmetic():
+    """How the DAO plan's "27% of fees" was encoded on-chain -- and it is not exact.
+
+    0.37 x 0.7297 = 0.269989, not 0.27. The headline figure is the true one rounded
+    to two decimal places. Worth pinning: the whole point of this tool is not to
+    round away the difference between a stated number and a real one.
+    """
+    fee_bucket = 37 * treasury.PRECISION // 100
+    gmx_share = 7297 * treasury.PRECISION // 10000
+    effective = fee_bucket * gmx_share // treasury.PRECISION
+    assert effective == 269989 * treasury.PRECISION // 1_000_000  # 26.9989%
+    assert effective != 27 * treasury.PRECISION // 100
+    assert round(effective * 100 / treasury.PRECISION, 2) == 27.00
+
+
 def test_keys_are_bare_hex_not_prefixed():
     """They are concatenated onto a selector, so a 0x prefix would corrupt the call."""
-    for key in (treasury.KEY_FEE_RECEIVER, treasury.KEY_WITHDRAWABLE_GMX, treasury.KEY_BATCH_GMX):
+    keys = (
+        treasury.KEY_FEE_RECEIVER,
+        treasury.KEY_WITHDRAWABLE_GMX,
+        treasury.KEY_BATCH_GMX,
+        treasury.KEY_BUYBACK_GMX_FACTOR_V1,
+        treasury.KEY_BUYBACK_GMX_FACTOR_V2,
+        treasury.KEY_POSITION_FEE_RECEIVER_FACTOR,
+    )
+    for key in keys:
         assert len(key) == 64 and not key.startswith("0x")
+    assert len(set(keys)) == len(keys), "duplicate key: a copy-paste error"
