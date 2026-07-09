@@ -1,0 +1,4 @@
+{
+  "_comment": "Copy to cex_addresses.json. Map address -> label. Only add addresses you have VERIFIED against a source you trust; a guessed label is an assertion dressed as data. Anything listed here is subtracted from the unlabelled residual and shown as its own line.",
+  "0x0000000000000000000000000000000000000000": "example - remove me"
+}
