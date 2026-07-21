@@ -1,3 +1,5 @@
+[![Python application](https://github.com/upcast-detruding/gmx-power/actions/workflows/python-app.yml/badge.svg)](https://github.com/upcast-detruding/gmx-power/actions/workflows/python-app.yml)
+
 # gmx-power
 
 A read-only tool for GMX stakers under the reward regime that began **2026-03-04**.
